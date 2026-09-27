@@ -1,0 +1,4 @@
+dependencies:
+  h2zero/esp-nimble-cpp: "^2.5.0"
+  espressif/mdns: "^1.8.0"
+  idf: ">=5.3.0"

@@ -1,0 +1,31 @@
+idf_component_register(
+    SRCS
+        "app_main.cpp"
+        "BTAdvertisedDeviceCallbacks.cpp"
+        "BTClientCallbacks.cpp"
+        "BTDeviceManager.cpp"
+        "Calculations.cpp"
+        "Characteristic.cpp"
+        "DirConManager.cpp"
+        "DirConMessage.cpp"
+        "Service.cpp"
+        "ServiceManager.cpp"
+        "SettingsManager.cpp"
+        "Utils.cpp"
+    INCLUDE_DIRS "include"
+    EMBED_FILES
+        "web/index.html"
+        "web/style.css"
+        "web/favicon.ico"
+    REQUIRES
+        esp_wifi
+        esp_netif
+        esp_event
+        nvs_flash
+        esp_http_server
+        mdns
+        esp_timer
+        esp_hw_support
+        bt
+        esp_coex
+)

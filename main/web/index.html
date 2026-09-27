@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Train2WiFi</title>
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <img src="favicon.ico" alt="">
+        <div>
+          <h1>Train2WiFi</h1>
+          <p id="version">wird geladen …</p>
+        </div>
+      </div>
+      <div class="pill" id="conn"><span class="dot" id="conn-dot"></span><span id="conn-text">Verbinde</span></div>
+    </header>
+
+    <nav class="tabs">
+      <a href="#uebersicht" class="active">Übersicht</a>
+      <a href="#trainer">Trainer</a>
+      <a href="#netzwerk">Netzwerk</a>
+    </nav>
+
+    <section id="uebersicht">
+      <div class="grid">
+        <article class="card"><span>Access Point</span><strong id="ap">–</strong></article>
+        <article class="card"><span>WLAN</span><strong id="wifi">–</strong></article>
+        <article class="card"><span>BLE</span><strong id="ble">–</strong></article>
+        <article class="card"><span>DirCon</span><strong id="dircon">–</strong></article>
+        <article class="card"><span>Modus</span><strong id="mode">–</strong></article>
+        <article class="card"><span>Freier Speicher</span><strong id="heap">–</strong></article>
+      </div>
+      <div class="panel" id="leistung">
+        <h2>Leistung</h2>
+        <p class="lead muted">Offset auf die gemeldeten Watt, von −10 % bis +10 %. Wirkt sofort, ohne Neustart. 200 W vom Trainer sind bei +10 % 220 W in der App. Im ERG-Modus wird der Sollwert am Trainer gegenläufig korrigiert, damit das Training auf der Vorgabe bleibt.</p>
+        <div class="power-head">
+          <strong id="power_offset_value">0 %</strong>
+          <span class="muted" id="power_live">Wartet auf Wattdaten vom Trainer</span>
+        </div>
+        <div class="power-slider">
+          <span>−10 %</span>
+          <input id="power_offset" type="range" min="-10" max="10" step="1" value="0" aria-label="Leistungs-Offset in Prozent">
+          <span>+10 %</span>
+        </div>
+        <p class="muted" id="power_status"></p>
+      </div>
+      <div class="panel">
+        <h2 id="device-name">Gerät</h2>
+        <p class="lead muted" id="service">Dienste werden gelesen …</p>
+      </div>
+    </section>
+
+    <section class="panel" id="trainer">
+      <h2>Trainer</h2>
+      <p class="lead muted">Zwift nutzt Virtual Shifting. MyWhoosh braucht die FTMS-Emulation. Beides gleichzeitig geht nicht.</p>
+      <div class="modes" id="modes">
+        <button type="button" class="mode" data-mode="zwift"><b>Zwift</b><small>Virtual Shifting, FE-C durchreichen</small></button>
+        <button type="button" class="mode" data-mode="mywhoosh"><b>MyWhoosh</b><small>FTMS-Emulation für den Trainer</small></button>
+        <button type="button" class="mode" data-mode="plain"><b>Durchreichen</b><small>Nur die BLE-Dienste des Trainers</small></button>
+      </div>
+      <div class="fields">
+        <label class="field wide">Trainer
+          <select id="trainer_device"></select>
+        </label>
+        <label class="field">Virtual-Shifting-Modus
+          <select id="virtual_shifting_mode"></select>
+        </label>
+        <label class="field">Schwierigkeit
+          <input id="difficulty" type="number" min="1" max="200" inputmode="numeric">
+        </label>
+        <label class="field">Kettenblatt
+          <input id="chainring_teeth" type="number" min="1" max="100" inputmode="numeric">
+        </label>
+        <label class="field">Ritzel
+          <input id="sprocket_teeth" type="number" min="1" max="100" inputmode="numeric">
+        </label>
+      </div>
+      <div class="ratio"><span class="muted">Grundübersetzung</span><strong id="ratio">–</strong></div>
+      <div class="row">
+        <div>
+          <b>Steigungsglättung</b>
+          <div class="muted">Sprünge in der Steigung werden geglättet.</div>
+        </div>
+        <label class="switch"><input id="grade_smoothing" type="checkbox" aria-label="Steigungsglättung"><span></span></label>
+      </div>
+      <div class="actions" style="margin-top:12px">
+        <button class="ghost" type="button" id="rescan">Trainer suchen</button>
+      </div>
+      <p class="muted" id="scan-status"></p>
+    </section>
+
+    <section class="panel" id="netzwerk">
+      <h2>Netzwerk</h2>
+      <p class="lead muted" id="net-hint">Der Access Point bleibt an. Sein Passwort ist das WLAN-Passwort, sonst der Hostname. DirCon läuft auf Port 8080.</p>
+      <div class="fields">
+        <label class="field">WLAN-Name
+          <input id="wifi_ssid" autocomplete="off" maxlength="32" placeholder="leer = nur Access Point">
+        </label>
+        <label class="field">WLAN-Passwort
+          <input id="wifi_password" type="password" autocomplete="new-password" maxlength="64" placeholder="leer lassen = behalten">
+        </label>
+      </div>
+    </section>
+
+    <footer class="note">
+      <span id="build"></span>
+    </footer>
+  </div>
+
+  <div class="savebar hidden" id="savebar">
+    <span>Speichern startet das Gerät neu.</span>
+    <button class="btn" type="button" id="save">Speichern</button>
+  </div>
+
+  <div class="overlay hidden" id="reboot">
+    <div class="dialog">
+      <h2>Neustart</h2>
+      <p class="muted" id="reboot-text">Einstellungen werden gespeichert. Die Seite verbindet sich danach neu.</p>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let settings = null;
+    let dirty = false;
+    let ready = false;
+
+    function markDirty() {
+      if (!ready) return;
+      dirty = true;
+      $("savebar").classList.remove("hidden");
+    }
+
+    function applyMode(mode) {
+      const ftms = mode === "mywhoosh";
+      const vs = mode === "zwift";
+      document.querySelectorAll(".mode").forEach((el) => el.classList.toggle("selected", el.dataset.mode === mode));
+      $("virtual_shifting_mode").disabled = !vs;
+      $("difficulty").disabled = !vs;
+      $("chainring_teeth").disabled = !vs;
+      $("sprocket_teeth").disabled = !vs;
+      $("grade_smoothing").disabled = false;
+      if (ready) {
+        $("mode").textContent = mode === "mywhoosh" ? "MyWhoosh · FTMS" : (mode === "zwift" ? "Zwift · Virtual Shifting" : "Durchreichen");
+      }
+      $("trainer").dataset.mode = mode;
+      markDirty();
+    }
+
+    function currentMode() {
+      return $("trainer").dataset.mode || "plain";
+    }
+
+    function formatOffset(value) {
+      const n = Number(value) || 0;
+      return (n > 0 ? "+" : "") + n + " %";
+    }
+
+    let powerTimer = null;
+    function queuePowerOffset() {
+      const value = $("power_offset").value;
+      $("power_offset_value").textContent = formatOffset(value);
+      clearTimeout(powerTimer);
+      powerTimer = setTimeout(async () => {
+        const body = new URLSearchParams();
+        body.set("power_offset", value);
+        try {
+          const response = await fetch("/poweroffset", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body,
+            cache: "no-store",
+          });
+          $("power_status").textContent = response.ok ? "" : "Speichern fehlgeschlagen";
+        } catch (err) {
+          $("power_status").textContent = "Speichern fehlgeschlagen";
+        }
+      }, 250);
+    }
+
+    function updateRatio() {
+      const chain = Number($("chainring_teeth").value);
+      const cog = Number($("sprocket_teeth").value);
+      $("ratio").textContent = chain > 0 && cog > 0 ? (chain / cog).toFixed(2) + "  (" + chain + ":" + cog + ")" : "–";
+    }
+
+    function trainerRank(name) {
+      const text = (name || "").toLowerCase();
+      if (text.includes("tacx") || text.includes("flux")) return 0;
+      if (/kickr|wahoo|elite|neo|direto|suito|vortex/.test(text)) return 1;
+      return 2;
+    }
+
+    function fillTrainers(data, keepValue) {
+      const select = $("trainer_device");
+      const selected = keepValue != null ? keepValue : (data.trainer_device || "");
+      const names = [];
+      const push = (name) => { if (name && !names.includes(name)) names.push(name); };
+      push(data.trainer_device);
+      (data.trainer_devices || []).forEach(push);
+      names.sort((a, b) => trainerRank(a) - trainerRank(b));
+      select.innerHTML = "";
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Keinen Trainer";
+      select.appendChild(empty);
+      names.forEach((name) => {
+        const option = document.createElement("option");
+        option.value = name;
+        const seen = (data.trainer_devices || []).includes(name);
+        option.textContent = seen || !name ? name : name + " (nicht in Reichweite)";
+        select.appendChild(option);
+      });
+      select.value = names.includes(selected) || selected === "" ? selected : "";
+    }
+
+    function fillModes(data) {
+      const select = $("virtual_shifting_mode");
+      select.innerHTML = "";
+      (data.virtual_shifting_modes || []).forEach((mode) => {
+        const option = document.createElement("option");
+        option.value = mode.value;
+        option.textContent = mode.name;
+        select.appendChild(option);
+      });
+      select.value = String(data.virtual_shifting_mode);
+    }
+
+    function showSettings(data) {
+      settings = data;
+      const editing = dirty;
+      const trainerValue = editing ? $("trainer_device").value : null;
+      fillTrainers(data, trainerValue);
+      if (!editing) {
+        fillModes(data);
+        $("chainring_teeth").value = data.chainring_teeth;
+        $("sprocket_teeth").value = data.sprocket_teeth;
+        $("difficulty").value = data.difficulty;
+        $("grade_smoothing").checked = !!data.grade_smoothing;
+        $("wifi_ssid").value = data.wifi_ssid || "";
+        $("wifi_password").value = "";
+        $("wifi_password").placeholder = data.wifi_configured ? "gespeichert, leer lassen = behalten" : "Passwort";
+        const mode = data.ftms_emulation ? "mywhoosh" : (data.virtual_shifting ? "zwift" : "plain");
+        ready = false;
+        applyMode(mode);
+        ready = true;
+        dirty = false;
+        $("savebar").classList.add("hidden");
+        const found = (data.trainer_devices || []).filter((name) => name);
+        const tacx = found.find((name) => trainerRank(name) === 0);
+        if (!(data.trainer_device || "") && tacx) {
+          $("trainer_device").value = tacx;
+          $("scan-status").textContent = "Trainer gefunden: " + tacx;
+          markDirty();
+        }
+      }
+      if (document.activeElement !== $("power_offset")) {
+        $("power_offset").value = data.power_offset || 0;
+        $("power_offset_value").textContent = formatOffset($("power_offset").value);
+      }
+      updateRatio();
+    }
+
+    async function loadSettings() {
+      const response = await fetch("/devicesettings", { cache: "no-store" });
+      if (!response.ok) return false;
+      showSettings(await response.json());
+      return true;
+    }
+
+    function deStatus(text) {
+      if (!text) return "–";
+      return text
+        .replace("Not connected", "Nicht verbunden")
+        .replace("Disconnected", "Getrennt")
+        .replace("Access-Point mode", "Nur Access Point")
+        .replace("Connected, IP: ", "Verbunden · ")
+        .replace("Connected, SSID: ", "Verbunden · ");
+    }
+
+    async function loadStatus() {
+      try {
+        const response = await fetch("/status", { cache: "no-store" });
+        if (!response.ok) throw new Error("status");
+        const data = await response.json();
+        $("conn-dot").className = "dot ok";
+        $("conn-text").textContent = "Verbunden";
+        $("version").textContent = (data.version || "") + (data.hostname ? " · " + data.hostname : "");
+        $("build").textContent = data.build_timestamp || "";
+        $("device-name").textContent = data.device_name || "Gerät";
+        $("ap").textContent = data.ap_address || "–";
+        $("wifi").textContent = deStatus(data.wifi_status);
+        $("ble").textContent = data.ble_status || "–";
+        $("dircon").textContent = data.dircon_status || "–";
+        $("service").textContent = data.service_status || "–";
+        if (!dirty) {
+          $("mode").textContent = data.ftms_emulation ? "MyWhoosh · FTMS" : (data.virtual_shifting ? "Zwift · Virtual Shifting" : "Durchreichen");
+        }
+        $("heap").textContent = data.free_heap ? Math.round(data.free_heap / 1024) + " KB" : "–";
+        if (typeof data.power_raw === "number") {
+          $("power_live").textContent = data.power_raw + " W vom Trainer, " + data.power_reported + " W an die App";
+        }
+        if (data.hostname) {
+          $("net-hint").textContent = "Access Point „" + data.hostname.replace(".local", "") + "“ auf " + (data.ap_address || "192.168.4.1") + ". Passwort ist das WLAN-Passwort, sonst der Hostname.";
+        }
+      } catch (err) {
+        $("conn-dot").className = "dot bad";
+        $("conn-text").textContent = "Keine Verbindung";
+      }
+    }
+
+    async function save() {
+      const mode = currentMode();
+      const body = new URLSearchParams();
+      body.set("trainer_device", $("trainer_device").value);
+      body.set("virtual_shifting_mode", $("virtual_shifting_mode").value || "0");
+      body.set("chainring_teeth", $("chainring_teeth").value || "34");
+      body.set("sprocket_teeth", $("sprocket_teeth").value || "14");
+      body.set("difficulty", $("difficulty").value || "100");
+      if ($("grade_smoothing").checked) body.set("grade_smoothing", "1");
+      if (mode === "zwift") body.set("virtual_shifting", "1");
+      if (mode === "mywhoosh") body.set("ftms_emulation", "1");
+      body.set("wifi_ssid", $("wifi_ssid").value.trim());
+      if ($("wifi_password").value) body.set("wifi_password", $("wifi_password").value);
+      $("save").disabled = true;
+      $("reboot").classList.remove("hidden");
+      try {
+        const response = await fetch("/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error("save");
+      } catch (err) {
+        $("reboot-text").textContent = "Speichern fehlgeschlagen oder das Gerät startet bereits neu.";
+      }
+      const started = Date.now();
+      const wait = async () => {
+        if (Date.now() - started > 45000) {
+          $("reboot-text").textContent = "Das Gerät ist noch nicht zurück. Seite neu laden, sobald die Verbindung steht.";
+          return;
+        }
+        try {
+          const response = await fetch("/status?ts=" + Date.now(), { cache: "no-store" });
+          if (response.ok && Date.now() - started > 2500) {
+            location.reload();
+            return;
+          }
+        } catch (err) { /* reboot in progress */ }
+        setTimeout(wait, 1000);
+      };
+      setTimeout(wait, 1500);
+    }
+
+    document.querySelectorAll(".mode").forEach((el) => el.addEventListener("click", () => applyMode(el.dataset.mode)));
+    ["trainer_device", "virtual_shifting_mode", "difficulty", "chainring_teeth", "sprocket_teeth", "grade_smoothing", "wifi_ssid", "wifi_password"]
+      .forEach((id) => $(id).addEventListener("input", () => { updateRatio(); markDirty(); }));
+    function applyTrainerList(data) {
+      const previous = $("trainer_device").value;
+      fillTrainers(data, previous);
+      const found = (data.trainer_devices || []).filter((name) => name);
+      const tacx = found.find((name) => trainerRank(name) === 0);
+      if (!previous && tacx) {
+        $("trainer_device").value = tacx;
+        markDirty();
+      } else if (!previous && found.length === 1) {
+        $("trainer_device").value = found[0];
+        markDirty();
+      }
+      return found;
+    }
+
+    async function rescan() {
+      const button = $("rescan");
+      button.disabled = true;
+      $("scan-status").textContent = "Suche Trainer…";
+      let detail = "Netzwerk";
+      try {
+        const start = await fetch("/scan?ts=" + Date.now(), { cache: "no-store" });
+        if (!start.ok) {
+          detail = String(start.status);
+          throw new Error("scan");
+        }
+        const started = Date.now();
+        let found = [];
+        let sawScan = false;
+        while (Date.now() - started < 16000) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          try {
+            const response = await fetch("/devicesettings?ts=" + Date.now(), { cache: "no-store" });
+            if (!response.ok) continue;
+            const data = await response.json();
+            found = applyTrainerList(data);
+            if (data.scanning) sawScan = true;
+            else if (sawScan && Date.now() - started > 1500) break;
+          } catch (err) {
+            continue;
+          }
+        }
+        const selected = $("trainer_device").value;
+        const tacx = found.find((name) => trainerRank(name) === 0) || (trainerRank(selected) === 0 ? selected : "");
+        $("scan-status").textContent = tacx
+          ? "Trainer gefunden: " + tacx
+          : (found.length ? found.length + " Geräte, kein Tacx dabei." : "Kein Trainer in Reichweite. Rolle wecken und erneut suchen.");
+      } catch (err) {
+        $("scan-status").textContent = "Suche fehlgeschlagen (" + detail + "). Seite neu laden und erneut versuchen.";
+      } finally {
+        button.disabled = false;
+      }
+    }
+    $("power_offset").addEventListener("input", queuePowerOffset);
+    $("rescan").addEventListener("click", rescan);
+    $("save").addEventListener("click", save);
+
+    document.querySelectorAll("nav.tabs a").forEach((link) => {
+      link.addEventListener("click", () => {
+        document.querySelectorAll("nav.tabs a").forEach((item) => item.classList.remove("active"));
+        link.classList.add("active");
+      });
+    });
+
+    loadStatus();
+    setInterval(loadStatus, 1000);
+    loadSettings();
+    setInterval(async () => {
+      if (dirty) return;
+      try {
+        const response = await fetch("/devicesettings?ts=" + Date.now(), { cache: "no-store" });
+        if (!response.ok) return;
+        const found = applyTrainerList(await response.json());
+        const tacx = found.find((name) => trainerRank(name) === 0);
+        if (tacx) $("scan-status").textContent = "Trainer gefunden: " + tacx;
+      } catch (err) { /* nächster Durchlauf */ }
+    }, 2000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define ST(A) #A
+#define STR(A) ST(A)
+
+#define DEFAULT_USERNAME "admin"
+
+// Used whenever no WLAN station is stored in NVS.
+#define DEFAULT_WIFI_SSID ""
+#define DEFAULT_WIFI_PASSWORD ""
+
+#define DEVICE_NAME_PREFIX "Train2WiFi"
+
+#define WEB_SERVER_PORT 80
+
+#define DIRCON_TCP_PORT 8080
+#define DIRCON_MAX_CLIENTS 3
+#define DIRCON_NOTIFICATION_INTERVAL 1000
+
+#define BLE_SCAN_INTERVAL 1000
+#define BLE_CONNECT_INTERVAL 300
+#define BLE_CONNECT_TIMEOUT 8
+#define BLE_CONNECT_COOLDOWN_MS 1500
+#define BLE_RECONNECT_DELAY_MS 150
+#define BLE_RECONNECT_RETRY_MS 400
+#define BLE_RECONNECT_TIMEOUT 3
+#define BLE_RECONNECT_SCAN_EVERY 6
+
+#endif
